@@ -118,6 +118,8 @@ public class LibraryView {
         JTextField returnDateField = new JTextField(20);
         issueIdentifiantField.setFont(labelFont);
         returnDateField.setFont(labelFont);
+        returnDateField.setToolTipText("Entrez la date au format jj/mm/aaaa (ex. 18/05/2025)");
+
         JButton issueButton = new JButton("Emprunter");
         JButton returnButton = new JButton("Retourner");
         styleButton(issueButton, 120, 40);

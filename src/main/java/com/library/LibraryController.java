@@ -1,6 +1,8 @@
 package com.library;
 
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 
 public class LibraryController {
@@ -47,16 +49,9 @@ public class LibraryController {
     }
 
     public String issueBook(String identifiant) {
-        Book book = bookDAO.findBookByIdentifiant(identifiant);
-        if (book == null) {
-            return "Livre non trouvé.";
-        }
-        Member member = memberDAO.getMemberById(1); // Placeholder member ID
-        if (member == null) {
-            return "Membre non trouvé.";
-        }
+     
         try {
-            transactionDAO.issueBook(book, member);
+            transactionDAO.issueBook(identifiant);
             return "Livre emprunté avec succès !";
         } catch (Exception e) {
             return "Erreur lors de l'emprunt : " + e.getMessage();
@@ -64,14 +59,14 @@ public class LibraryController {
     }
 
     public String returnBook(String identifiant, String returnDateStr) {
-        Book book = bookDAO.findBookByIdentifiant(identifiant);
-        if (book == null) {
-            return "Livre non trouvé.";
-        }
         try {
-            LocalDate returnDate = LocalDate.parse(returnDateStr);
-            transactionDAO.returnBook(book, returnDate);
+            // Définir le format attendu pour la date (jj/mm/aaaa)
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+            LocalDate returnDate = LocalDate.parse(returnDateStr, formatter);
+            transactionDAO.returnBook(identifiant, returnDate);
             return "Livre retourné avec succès !";
+        } catch (DateTimeParseException e) {
+            return "Erreur lors du retour : format de date invalide. Utilisez jj/mm/aaaa (ex. 18/05/2025).";
         } catch (Exception e) {
             return "Erreur lors du retour : " + e.getMessage();
         }

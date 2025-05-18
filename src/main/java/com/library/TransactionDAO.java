@@ -6,6 +6,7 @@ import org.hibernate.cfg.Configuration;
 import org.hibernate.Transaction;
 import org.hibernate.query.Query;
 import java.time.LocalDate;
+import java.util.List;
 
 public class TransactionDAO {
     private final SessionFactory sessionFactory;
@@ -19,69 +20,62 @@ public class TransactionDAO {
                 .buildSessionFactory();
     }
 
-    public void issueBook(int bookId, int memberId) throws Exception {
+    public void issueBook(String identifiant) {
         try (Session session = sessionFactory.openSession()) {
-            Transaction hibernateTx = session.beginTransaction();
-
-            // Fetch book and member
-            Book book = session.get(Book.class, bookId);
-            Member member = session.get(Member.class, memberId);
-
-            // Validate book and member existence
+            org.hibernate.Transaction hibernateTx = session.beginTransaction();
+            // Récupérer le livre à partir de l'identifiant
+            Book book = session.createQuery("FROM Book b WHERE b.identifiant = :identifiant", Book.class)
+                    .setParameter("identifiant", identifiant)
+                    .uniqueResult();
             if (book == null) {
-                throw new Exception("Livre non trouvé avec l'ID : " + bookId);
+                throw new RuntimeException("Livre non trouvé avec l'identifiant : " + identifiant);
             }
-            if (member == null) {
-                throw new Exception("Membre non trouvé avec l'ID : " + memberId);
-            }
-
-            // Check if the book is already issued
-            String bookHql = "FROM Transaction t WHERE t.book.id = :bookId AND t.returnDate IS NULL";
-            Query<com.library.Transaction> bookQuery = session.createQuery(bookHql, com.library.Transaction.class);
-            bookQuery.setParameter("bookId", bookId);
-            if (!bookQuery.getResultList().isEmpty()) {
-                throw new Exception("Le livre est déjà emprunté.");
-            }
-
-            // Check if the member has reached the borrowing limit (max 3 books)
-            String memberHql = "FROM Transaction t WHERE t.member.id = :memberId AND t.returnDate IS NULL";
-            Query<com.library.Transaction> memberQuery = session.createQuery(memberHql, com.library.Transaction.class);
-            memberQuery.setParameter("memberId", memberId);
-            if (memberQuery.getResultList().size() >= 3) {
-                throw new Exception("Le membre a atteint la limite d'emprunt (3 livres maximum).");
-            }
-
-            // Create and save the transaction
             com.library.Transaction transaction = new com.library.Transaction();
             transaction.setBook(book);
-            transaction.setMember(member);
+      
             transaction.setIssueDate(LocalDate.now());
             session.persist(transaction);
-
             hibernateTx.commit();
         } catch (Exception e) {
-            throw e; // Re-throw the exception to be handled by the caller
+            e.printStackTrace();
+            throw new RuntimeException("Échec de l'emprunt du livre : " + e.getMessage());
         }
     }
 
-    public void returnBook(int transactionId) throws Exception {
+    public void returnBook(String identifiant, LocalDate returnDate) {
         try (Session session = sessionFactory.openSession()) {
-            Transaction hibernateTx = session.beginTransaction();
-
-            com.library.Transaction transaction = session.get(com.library.Transaction.class, transactionId);
-            if (transaction == null) {
-                throw new Exception("Transaction non trouvée avec l'ID : " + transactionId);
+            org.hibernate.Transaction hibernateTx = session.beginTransaction();
+            // Récupérer le livre à partir de l'identifiant
+            Book book = session.createQuery("FROM Book b WHERE b.identifiant = :identifiant", Book.class)
+                    .setParameter("identifiant", identifiant)
+                    .uniqueResult();
+            if (book == null) {
+                throw new RuntimeException("Livre non trouvé avec l'identifiant : " + identifiant);
             }
-            if (transaction.getReturnDate() != null) {
-                throw new Exception("Le livre a déjà été retourné.");
+            com.library.Transaction transaction = session.createQuery(
+                    "FROM Transaction t WHERE t.book = :book AND t.returnDate IS NULL", com.library.Transaction.class)
+                    .setParameter("book", book)
+                    .uniqueResult();
+            if (transaction != null) {
+                transaction.setReturnDate(returnDate);
+                session.merge(transaction);
+                hibernateTx.commit();
+            } else {
+                throw new RuntimeException("Aucune transaction active trouvée pour ce livre.");
             }
-
-            transaction.setReturnDate(LocalDate.now());
-            session.merge(transaction);
-
-            hibernateTx.commit();
         } catch (Exception e) {
-            throw e;
+            e.printStackTrace();
+            throw new RuntimeException("Échec du retour du livre : " + e.getMessage());
+        }
+    }
+    public List<com.library.Transaction> getBookHistory(Book book) {
+        try (Session session = sessionFactory.openSession()) {
+            return session.createQuery("FROM Transaction t WHERE t.book = :book", com.library.Transaction.class)
+                    .setParameter("book", book)
+                    .getResultList();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
         }
     }
 }

@@ -26,4 +26,14 @@ public class MemberDAO {
             e.printStackTrace();
         }
     }
+    public Member getMemberById(int id) {
+        try (Session session = sessionFactory.openSession()) {
+            return session.createQuery("FROM Member m WHERE m.id = :id", Member.class)
+                    .setParameter("id", id)
+                    .uniqueResult();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
 }

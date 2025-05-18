@@ -65,14 +65,15 @@ public class BookDAO {
 
     public void updateBook(String title, String identifiant) {
         try (Session session = sessionFactory.openSession()) {
-            org.hibernate.Transaction hibernateTx = session.beginTransaction();
-            Query<Book> query = session.createQuery("UPDATE Book b SET b.title = :title WHERE b.identifiant = :identifiant", Book.class);
-            query.setParameter("title", title);
-            query.setParameter("identifiant", identifiant);
-            query.executeUpdate();
-            hibernateTx.commit();
+            org.hibernate.Transaction tx = session.beginTransaction();
+            session.createQuery("UPDATE Book b SET b.title = :title WHERE b.identifiant = :identifiant")
+                    .setParameter("title", title)
+                    .setParameter("identifiant", identifiant)
+                    .executeUpdate();
+            tx.commit();
         } catch (Exception e) {
             e.printStackTrace();
+            throw new RuntimeException("Échec de la mise à jour du livre : " + e.getMessage());
         }
     }
 
